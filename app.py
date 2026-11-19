@@ -5,7 +5,7 @@ mcp-clinic: единый веб-интерфейс трёх MCP-источник
   python -m mcp_clinic.servers.sse_server          # в терминале 1 (порт 8000)
   streamlit run app.py                              # в терминале 2
 
-Интерфейс: селектор источника → поиск инструмента → динамическая форма
+Интерфейс: селектор источника → выбор инструмента → динамическая форма
 из JSON-схемы → карточка результата с цветовой стратификацией →
 инспектор JSON-RPC пакетов.
 """
@@ -30,17 +30,103 @@ RISK_STYLE = {
     "green": ("🟢", "Норма / низкий риск", "#71855B"),
 }
 
+# ------------------------------------------------------------------
+# Русские подписи параметров: «Перевод (оригинал)»
+# ------------------------------------------------------------------
+PARAM_LABELS = {
+    # общие
+    "age": "Возраст, лет",
+    "sex": "Пол",
+    "category": "Категория",
+    # антропометрия
+    "weight_kg": "Вес",
+    "height_m": "Рост",
+    # почки
+    "creatinine": "Креатинин сыворотки",
+    # CHA2DS2-VASc
+    "chf": "ХСН (застойная сердечная недостаточность)",
+    "hypertension": "Артериальная гипертензия",
+    "stroke": "Инсульт / ТИА в анамнезе",
+    "vascular_disease": "Сосудистые заболевания",
+    "diabetes": "Сахарный диабет",
+    # HAS-BLED
+    "renal_disease": "Заболевания почек",
+    "liver_disease": "Заболевания печени",
+    "bleeding": "Кровотечения в анамнезе",
+    "labile_inr": "Нестабильное МНО",
+    "drugs": "Лекарства, повышающие риск кровотечения",
+    "alcohol": "Приём алкоголя",
+    # Глазго
+    "eye": "Открывание глаз",
+    "verbal": "Речевой ответ",
+    "motor": "Двигательный ответ",
+    # PubMed
+    "query": "Поисковый запрос",
+    "pmid": "Идентификатор статьи (PMID)",
+    "max_results": "Максимум результатов",
+    "min_year": "Год не раньше",
+    "max_year": "Год не позже",
+    "sort": "Сортировка",
+    "only_free_fulltext": "Только бесплатный полный текст",
+    "only_with_abstract": "Только со аннотацией",
+    # дополнительные (SSE + FDA-инструменты external)
+    "age_over_65": "Возраст старше 65 лет",
+    "author": "Автор",
+    "bleeding_history": "Кровотечения в анамнезе",
+    "condition": "Заболевание / состояние",
+    "creatinine_mg_dl": "Креатинин, мг/дл",
+    "drug_name": "Название препарата",
+    "drugs_alcohol": "Лекарства и алкоголь",
+    "ids": "Идентификаторы",
+    "include_mesh": "Включать рубрики MeSH",
+    "input_type": "Тип ввода",
+    "intervention": "Вмешательство / лечение",
+    "journal": "Журнал",
+    "limit": "Лимит результатов",
+    "max_sections": "Максимум разделов",
+    "page": "Страница результатов",
+    "paper_id": "Идентификатор статьи",
+    "pmids": "Список идентификаторов (PMID)",
+    "relationship": "Тип взаимодействия",
+    "search_mode": "Режим поиска",
+    "sections_filter": "Фильтр по разделам",
+    "sources": "Источники данных",
+    "status": "Статус",
+    "stroke_history": "Инсульт в анамнезе",
+    "stroke_tia": "Инсульт / ТИА",
+    "style": "Стиль изложения",
+    "term": "Термин",
+    "volume": "Том журнала",
+    "year": "Год",
+}
+
+ENUM_LABELS = {
+    "male": "мужской",
+    "female": "женский",
+    "relevance": "по релевантности",
+    "date": "по дате (свежие первыми)",
+    "pub_date": "по дате публикации",
+}
+
+
+def param_label(name: str) -> str:
+    """«Перевод (оригинал)»; если перевода нет — оригинал как есть."""
+    ru = PARAM_LABELS.get(name)
+    return f"{ru} ({name})" if ru else name
+
+
 st.markdown("""
 <style>
-  :root { --brand: #684765; --cream: #F7F3E8; --ink: #3A3340; }
-  .stApp { background: var(--cream); }
+  :root { --brand: #6B5B95; --ink: #3A3340; }
+  .stApp { background: #FBFAF7; }
   h1, h2, h3 { color: var(--brand) !important; }
   .hero {
-    background: linear-gradient(135deg, #684765 0%, #8A6B87 100%);
-    border-radius: 14px; padding: 20px 26px; margin-bottom: 16px; color: #F7F3E8;
+    background: linear-gradient(135deg, #6B5B95 0%, #8B7BB8 100%);
+    border-radius: 14px; padding: 14px 22px; margin-bottom: 14px;
+    color: #FFFFFF;
   }
-  .hero h1 { color: #F7F3E8 !important; font-size: 1.6rem; margin: 0; }
-  .hero p { color: #E5D9E4; margin: 5px 0 0 0; font-size: 0.9rem; }
+  .hero h1 { color: #FFFFFF !important; font-size: 1.35rem; margin: 0; }
+  .hero p { color: #E9E4F5; margin: 3px 0 0 0; font-size: 0.85rem; }
   .result-card {
     background: #fff; border-radius: 12px; padding: 18px 22px;
     box-shadow: 0 1px 3px rgba(60,45,60,0.12); margin-top: 10px;
@@ -51,35 +137,19 @@ st.markdown("""
     padding: 12px 16px; font-family: Consolas, monospace; font-size: 0.78rem;
     margin: 6px 0; white-space: pre-wrap; word-break: break-all;
   }
+  [data-testid="stFormSubmitButton"] button,
+  [data-testid="baseButton-primary"] {
+    background-color: #6B5B95 !important;
+    border: none !important;
+    border-radius: 10px !important;
+  }
 </style>
 <div class="hero">
   <h1>🩺 mcp-clinic</h1>
-  <p>Три паттерна интеграции по протоколу MCP: stdio · SSE :8000 ·
-  внешний medical-mcp (PubMed/FDA) · инспектор JSON-RPC</p>
+  <p>Мультиагентный сбор медицинской информации: калькуляторы (stdio, SSE) ·
+  PubMed / FDA (external) · инспектор JSON-RPC</p>
 </div>
 """, unsafe_allow_html=True)
-
-with st.expander("🚀 Как пользоваться (займёт 30 секунд)", expanded=False):
-    st.markdown(
-        """
-**Схема работы всегда одна и та же — 4 шага:**
-
-1. **Слева выберите источник** — это три разных «подключения» к инструментам:
-   - 🧮 **stdio** — локальный процесс с 5 медицинскими калькуляторами (CKD-EPI, ИМТ, Глазго…);
-   - 🌐 **sse** — наш собственный сервер на порту 8000 (инструменты с валидацией границ);
-   - 📚 **external** — внешний medical-mcp: живой поиск по PubMed и FDA (нужен интернет).
-2. **Выберите инструмент** из списка. Строка «Поиск по названию» — это **фильтр
-   этого списка**, а не поиск по лекарствам: напишите «сердце» — останутся только
-   сердечные калькуляторы.
-3. **Заполните параметры** — форма строится автоматически из JSON-схемы инструмента.
-4. **Нажмите кнопку** — результат появится карточкой ниже, а сырые JSON-RPC
-   пакеты обмена — в инспекторе в самом низу страницы.
-
-**Пример поиска статей:** источник 📚 external → инструмент `pubmed_search` →
-в поле `query` напишите `aspirin` → кнопка. Сайт вернёт список PMID (идентификаторов
-статей). Скопируйте любой PMID → выберите `pubmed_fetch` → вставьте в поле `pmid` →
-получите аннотацию статьи.
-""")
 
 
 # ------------------------------------------------------------------
@@ -111,8 +181,9 @@ def render_field(name: str, prop: dict, key_prefix: str):
     ptype = prop.get("type", "string")
     description = prop.get("description", "")
     default = prop.get("default")
+    label = param_label(name)
     if ptype == "boolean":
-        return st.checkbox(name, value=bool(default or False),
+        return st.checkbox(label, value=bool(default or False),
                            help=description, key=f"{key_prefix}{name}")
     if ptype in ("number", "integer"):
         lo, hi = 0.0, 100.0
@@ -135,15 +206,16 @@ def render_field(name: str, prop: dict, key_prefix: str):
         default_val = float(default) if default is not None else (lo + hi) / 2
         if ptype == "integer":
             default_val = int(default_val)
-        val = st.slider(f"{name}{f' ({unit})' if unit else ''} ({lo:g}–{hi:g})",
+        val = st.slider(f"{label}{f' ({unit})' if unit else ''} · {lo:g}–{hi:g}",
                         min_value=lo, max_value=hi,
                         value=default_val,
                         step=step, help=description, key=f"{key_prefix}{name}")
         return int(val) if ptype == "integer" else val
     if "enum" in prop:
-        return st.selectbox(name, options=prop["enum"],
+        return st.selectbox(label, options=prop["enum"],
+                            format_func=lambda v: ENUM_LABELS.get(v, v),
                             help=description, key=f"{key_prefix}{name}")
-    return st.text_input(name, value=str(default or ""),
+    return st.text_input(label, value=str(default or ""),
                          help=description, key=f"{key_prefix}{name}")
 
 
@@ -163,8 +235,8 @@ def _render_pubmed_search(data: dict):
         st.code("  ".join(pmids), language=None)
         st.info(
             "**Что дальше?** Выберите в списке инструментов выше **pubmed_fetch**, "
-            "вставьте любой PMID в его поле `pmid` и нажмите кнопку — "
-            "получите название, авторов и аннотацию статьи.")
+            "вставьте любой PMID в его поле «Идентификатор статьи» и нажмите "
+            "кнопку — получите название, авторов и аннотацию статьи.")
     with st.expander("Сырой ответ сервера (JSON)", expanded=False):
         st.json(data)
 
@@ -175,7 +247,7 @@ def render_result(data: dict):
         st.json(data)
         return
     color_key = data.get("risk_color")
-    icon, label, hexcol = RISK_STYLE.get(color_key, ("ℹ️", "", "#684765"))
+    icon, label, hexcol = RISK_STYLE.get(color_key, ("ℹ️", "", "#6B5B95"))
     value = data.get("value")
     if value is None:
         # результат не похож на карточку риска (например, список статей
@@ -230,13 +302,9 @@ with st.sidebar:
          "external — medical-mcp (PubMed/FDA)"],
         index=0)
     st.divider()
-    st.markdown("**Что есть что:**")
-    st.caption("🧮 **stdio** — локальный процесс с 5 медицинскими "
-               "калькуляторами (CKD-EPI, ИМТ, Глазго…)")
-    st.caption("🌐 **sse** — наш сервер на порту 8000 с инструментами "
-               "и валидацией границ")
-    st.caption("📚 **external** — внешний medical-mcp: живой поиск "
-               "PubMed и FDA (нужен интернет)")
+    st.caption("🧮 stdio — калькуляторы в локальном процессе")
+    st.caption("🌐 sse — наш сервер на порту 8000")
+    st.caption("📚 external — живой поиск PubMed и FDA")
     st.divider()
     st.caption("Учебный проект. Не медицинская рекомендация.")
 
@@ -252,62 +320,18 @@ if getattr(client, "error", None):
 tools: list[dict] = client.tools_cache
 
 # ------------------------------------------------------------------
-# Поиск и фильтрация инструментов
+# Выбор инструмента (списки короткие — 6–17 позиций, фильтр не нужен)
 # ------------------------------------------------------------------
-st.subheader(f"🔌 {client.source_name} — {len(tools)} инструментов")
-query = st.text_input(
-    "Поиск по названию и описанию (рус / лат)",
-    placeholder="например: скф, bmi, глазго, pubmed…",
-    help="Фильтрует СПИСОК инструментов ниже. Это не поиск по лекарствам: "
-         "чтобы искать статьи про аспирин, выберите инструмент pubmed_search "
-         "и впишите «aspirin» в его поле query.")
-st.caption("⬆ Эта строка фильтрует список инструментов: напишите «сердце» — "
-           "останутся только сердечные калькуляторы. Поиск статей о лекарствах "
-           "делается через инструмент pubmed_search → его поле query.")
-q = query.strip().lower()
+st.subheader("Инструменты")
+st.caption(f"{client.source_name} · {len(tools)} доступно")
 
-# бытовые русские слова → медицинские термины из описаний
-SEARCH_SYNONYMS = {
-    "почки": "нефрология ckd скф креатинин",
-    "почка": "нефрология ckd скф",
-    "сердце": "кардиология инсульт кровотечения",
-    "сердца": "кардиология инсульт",
-    "инсульт": "stroke cha2ds2 vasc",
-    "кровотеч": "has_bled bleeding",
-    "кома": "глазго gcs",
-    "сознание": "глазго gcs",
-    "вес": "bmi масса тела",
-    "масс": "bmi вес ожирение",
-    "ожирени": "bmi вес масса тела",
-    "аритми": "cha2ds2 фибрилляция предсердий",
-    "хбп": "ckd скф креатинин нефрология",
-}
-for key, syn in SEARCH_SYNONYMS.items():
-    if key in q:
-        q = f"{q} {syn}"
-
-
-def _search_text(t: dict) -> str:
-    """Имя + описание + русское название и категория из каталога методик."""
-    meta = CALC_META.get(t["name"], {})
-    return " ".join([t["name"], t.get("description", ""),
-                     meta.get("name_ru", ""), meta.get("category", "")]).lower()
-
-
-tokens = q.split()
-filtered = [t for t in tools
-            if not tokens or any(tok in _search_text(t) for tok in tokens)]
-if not filtered:
-    st.warning("Ничего не найдено — попробуйте другой запрос.")
-    st.stop()
-
-names = [t["name"] for t in filtered]
-tool_name = st.selectbox("Инструмент", names,
+names = [t["name"] for t in tools]
+tool_name = st.selectbox("Выберите функцию", names,
                          format_func=lambda n: next(
                              (t["description"].split(".")[0]
-                              for t in filtered if t["name"] == n), n))
+                              for t in tools if t["name"] == n), n))
 st.session_state["active_tool"] = tool_name
-tool = next(t for t in filtered if t["name"] == tool_name)
+tool = next(t for t in tools if t["name"] == tool_name)
 
 # ------------------------------------------------------------------
 # Динамическая форма параметров из JSON-схемы
@@ -315,7 +339,7 @@ tool = next(t for t in filtered if t["name"] == tool_name)
 schema_props = tool.get("inputSchema", {}).get("properties", {})
 required = set(tool.get("inputSchema", {}).get("required", []))
 
-st.markdown(f"#### ⚙️ Параметры: `{tool_name}`")
+st.markdown(f"#### Параметры")
 if tool.get("description"):
     st.caption(tool["description"])
 args = {}
