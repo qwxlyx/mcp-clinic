@@ -1,0 +1,23 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+
+# Streamlit / кэши
+.streamlit/
+*.cache
+.pytest_cache/
+
+# IDE / ОС
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+
+# Дампы и временные файлы
+*.log
+*.tmp
+*.sqlite3
+.env

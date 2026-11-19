@@ -1,0 +1,16 @@
+{
+  "mcpServers": {
+    "clinic-calc-stdio": {
+      "command": "python",
+      "args": ["-m", "mcp_clinic.servers.stdio_server"],
+      "cwd": "${workspaceFolder}"
+    },
+    "clinic-scales-sse": {
+      "url": "http://127.0.0.1:8000/sse"
+    },
+    "pubmed-external": {
+      "command": "pubmed-mcp",
+      "args": []
+    }
+  }
+}

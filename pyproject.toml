@@ -1,0 +1,19 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "mcp-clinic"
+version = "1.0.0"
+description = "Три паттерна интеграции MCP в клиническом веб-приложении: stdio, SSE, external"
+requires-python = ">=3.11"
+dependencies = [
+    "mcp>=2.3.0",
+    "pydantic>=2",
+    "httpx",
+    "httpx-sse",
+    "streamlit>=1.35",
+]
+
+[tool.setuptools.packages.find]
+include = ["mcp_clinic*"]
