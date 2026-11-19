@@ -59,6 +59,28 @@ st.markdown("""
 </div>
 """, unsafe_allow_html=True)
 
+with st.expander("🚀 Как пользоваться (займёт 30 секунд)", expanded=False):
+    st.markdown(
+        """
+**Схема работы всегда одна и та же — 4 шага:**
+
+1. **Слева выберите источник** — это три разных «подключения» к инструментам:
+   - 🧮 **stdio** — локальный процесс с 5 медицинскими калькуляторами (CKD-EPI, ИМТ, Глазго…);
+   - 🌐 **sse** — наш собственный сервер на порту 8000 (инструменты с валидацией границ);
+   - 📚 **external** — внешний medical-mcp: живой поиск по PubMed и FDA (нужен интернет).
+2. **Выберите инструмент** из списка. Строка «Поиск по названию» — это **фильтр
+   этого списка**, а не поиск по лекарствам: напишите «сердце» — останутся только
+   сердечные калькуляторы.
+3. **Заполните параметры** — форма строится автоматически из JSON-схемы инструмента.
+4. **Нажмите кнопку** — результат появится карточкой ниже, а сырые JSON-RPC
+   пакеты обмена — в инспекторе в самом низу страницы.
+
+**Пример поиска статей:** источник 📚 external → инструмент `pubmed_search` →
+в поле `query` напишите `aspirin` → кнопка. Сайт вернёт список PMID (идентификаторов
+статей). Скопируйте любой PMID → выберите `pubmed_fetch` → вставьте в поле `pmid` →
+получите аннотацию статьи.
+""")
+
 
 # ------------------------------------------------------------------
 # Фабрика клиентов + кэш сессий Streamlit
@@ -125,6 +147,28 @@ def render_field(name: str, prop: dict, key_prefix: str):
                          help=description, key=f"{key_prefix}{name}")
 
 
+def _render_pubmed_search(data: dict):
+    """Человекочитаемая карточка результата pubmed_search (список PMID)."""
+    q_applied = data.get("query_applied") or data.get("original_query") or "—"
+    total = data.get("total_count", 0)
+    returned = data.get("returned_count", len(data.get("pmids", [])))
+    pmids = [str(p) for p in data.get("pmids", [])]
+    st.success("✅ Поиск в PubMed выполнен")
+    st.markdown(
+        f"**Ваш запрос:** `{q_applied}`  \n"
+        f"**Найдено статей всего:** {total:,}".replace(",", " ")
+        + f"  \n**Показано идентификаторов (PMID):** {returned}")
+    if pmids:
+        st.markdown("**PMID первых статей** — скопируйте любой:")
+        st.code("  ".join(pmids), language=None)
+        st.info(
+            "**Что дальше?** Выберите в списке инструментов выше **pubmed_fetch**, "
+            "вставьте любой PMID в его поле `pmid` и нажмите кнопку — "
+            "получите название, авторов и аннотацию статьи.")
+    with st.expander("Сырой ответ сервера (JSON)", expanded=False):
+        st.json(data)
+
+
 def render_result(data: dict):
     """Карточка результата: главное значение крупно + цвет + разбор + источник."""
     if not isinstance(data, dict):
@@ -135,21 +179,25 @@ def render_result(data: dict):
     value = data.get("value")
     if value is None:
         # результат не похож на карточку риска (например, список статей
-        # PubMed) — показываем полезную нагрузку целиком
+        # PubMed) — рисуем специализированную карточку или полезную нагрузку
+        if isinstance(data.get("pmids"), list):
+            _render_pubmed_search(data)
+            return
         st.json(data)
         return
     top = st.container()
     with top:
         c1, c2 = st.columns([1, 2])
         with c1:
-            st.markdown(
-                f'<div class="result-card" style="text-align:center">'
-                f'<div class="big-value" style="color:{hexcol}">{value}'
-                f'<span style="font-size:1rem;color:#8C7F8A"> '
-                f'{data.get("unit", "")}</span></div>'
-                f'<div style="color:{hexcol};font-weight:700">{icon} '
-                f'{data.get("band", label)}</div></div>',
-                unsafe_allow_html=True)
+            if value is not None:
+                st.markdown(
+                    f'<div class="result-card" style="text-align:center">'
+                    f'<div class="big-value" style="color:{hexcol}">{value}'
+                    f'<span style="font-size:1rem;color:#8C7F8A"> '
+                    f'{data.get("unit", "")}</span></div>'
+                    f'<div style="color:{hexcol};font-weight:700">{icon} '
+                    f'{data.get("band", label)}</div></div>',
+                    unsafe_allow_html=True)
         with c2:
             lines = []
             if data.get("formula"):
@@ -182,8 +230,14 @@ with st.sidebar:
          "external — medical-mcp (PubMed/FDA)"],
         index=0)
     st.divider()
-    st.caption("stdio: подпроцесс с калькуляторами · sse: демон на порту 8000 · "
-               "external: медицинские базы из каталога Glama.ai")
+    st.markdown("**Что есть что:**")
+    st.caption("🧮 **stdio** — локальный процесс с 5 медицинскими "
+               "калькуляторами (CKD-EPI, ИМТ, Глазго…)")
+    st.caption("🌐 **sse** — наш сервер на порту 8000 с инструментами "
+               "и валидацией границ")
+    st.caption("📚 **external** — внешний medical-mcp: живой поиск "
+               "PubMed и FDA (нужен интернет)")
+    st.divider()
     st.caption("Учебный проект. Не медицинская рекомендация.")
 
 client = connected_client(source)
@@ -203,7 +257,13 @@ tools: list[dict] = client.tools_cache
 st.subheader(f"🔌 {client.source_name} — {len(tools)} инструментов")
 query = st.text_input(
     "Поиск по названию и описанию (рус / лат)",
-    placeholder="например: скф, bmi, глазго, pubmed…")
+    placeholder="например: скф, bmi, глазго, pubmed…",
+    help="Фильтрует СПИСОК инструментов ниже. Это не поиск по лекарствам: "
+         "чтобы искать статьи про аспирин, выберите инструмент pubmed_search "
+         "и впишите «aspirin» в его поле query.")
+st.caption("⬆ Эта строка фильтрует список инструментов: напишите «сердце» — "
+           "останутся только сердечные калькуляторы. Поиск статей о лекарствах "
+           "делается через инструмент pubmed_search → его поле query.")
 q = query.strip().lower()
 
 # бытовые русские слова → медицинские термины из описаний
