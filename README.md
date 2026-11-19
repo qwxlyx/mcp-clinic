@@ -75,6 +75,7 @@ python -m mcp_clinic.servers.stdio_server --help   # просто запуск; 
 ```
 mcp-clinic/
 ├── app.py                          # Streamlit UI + JSON-RPC инспектор
+├── tests_integration.py            # прогон трёх источников подряд
 ├── mcp_clinic/
 │   ├── calculators.py              # формулы + Pydantic-валидация + метаданные
 │   ├── servers/
