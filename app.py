@@ -133,19 +133,23 @@ def render_result(data: dict):
     color_key = data.get("risk_color")
     icon, label, hexcol = RISK_STYLE.get(color_key, ("ℹ️", "", "#684765"))
     value = data.get("value")
+    if value is None:
+        # результат не похож на карточку риска (например, список статей
+        # PubMed) — показываем полезную нагрузку целиком
+        st.json(data)
+        return
     top = st.container()
     with top:
         c1, c2 = st.columns([1, 2])
         with c1:
-            if value is not None:
-                st.markdown(
-                    f'<div class="result-card" style="text-align:center">'
-                    f'<div class="big-value" style="color:{hexcol}">{value}'
-                    f'<span style="font-size:1rem;color:#8C7F8A"> '
-                    f'{data.get("unit", "")}</span></div>'
-                    f'<div style="color:{hexcol};font-weight:700">{icon} '
-                    f'{data.get("band", label)}</div></div>',
-                    unsafe_allow_html=True)
+            st.markdown(
+                f'<div class="result-card" style="text-align:center">'
+                f'<div class="big-value" style="color:{hexcol}">{value}'
+                f'<span style="font-size:1rem;color:#8C7F8A"> '
+                f'{data.get("unit", "")}</span></div>'
+                f'<div style="color:{hexcol};font-weight:700">{icon} '
+                f'{data.get("band", label)}</div></div>',
+                unsafe_allow_html=True)
         with c2:
             lines = []
             if data.get("formula"):
