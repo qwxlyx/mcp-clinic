@@ -201,9 +201,38 @@ query = st.text_input(
     "Поиск по названию и описанию (рус / лат)",
     placeholder="например: скф, bmi, глазго, pubmed…")
 q = query.strip().lower()
+
+# бытовые русские слова → медицинские термины из описаний
+SEARCH_SYNONYMS = {
+    "почки": "нефрология ckd скф креатинин",
+    "почка": "нефрология ckd скф",
+    "сердце": "кардиология инсульт кровотечения",
+    "сердца": "кардиология инсульт",
+    "инсульт": "stroke cha2ds2 vasc",
+    "кровотеч": "has_bled bleeding",
+    "кома": "глазго gcs",
+    "сознание": "глазго gcs",
+    "вес": "bmi масса тела",
+    "масс": "bmi вес ожирение",
+    "ожирени": "bmi вес масса тела",
+    "аритми": "cha2ds2 фибрилляция предсердий",
+    "хбп": "ckd скф креатинин нефрология",
+}
+for key, syn in SEARCH_SYNONYMS.items():
+    if key in q:
+        q = f"{q} {syn}"
+
+
+def _search_text(t: dict) -> str:
+    """Имя + описание + русское название и категория из каталога методик."""
+    meta = CALC_META.get(t["name"], {})
+    return " ".join([t["name"], t.get("description", ""),
+                     meta.get("name_ru", ""), meta.get("category", "")]).lower()
+
+
+tokens = q.split()
 filtered = [t for t in tools
-            if not q or q in t["name"].lower()
-            or q in t.get("description", "").lower()]
+            if not tokens or any(tok in _search_text(t) for tok in tokens)]
 if not filtered:
     st.warning("Ничего не найдено — попробуйте другой запрос.")
     st.stop()
