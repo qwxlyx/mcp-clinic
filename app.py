@@ -13,6 +13,7 @@ mcp-clinic: единый веб-интерфейс трёх MCP-источник
 from __future__ import annotations
 
 import json
+import re
 
 import streamlit as st
 
@@ -75,7 +76,6 @@ PARAM_LABELS = {
     "bleeding_history": "Кровотечения в анамнезе",
     "condition": "Заболевание / состояние",
     "creatinine_mg_dl": "Креатинин, мг/дл",
-    "drug_name": "Название препарата",
     "drugs_alcohol": "Лекарства и алкоголь",
     "ids": "Идентификаторы",
     "include_mesh": "Включать рубрики MeSH",
@@ -352,6 +352,17 @@ with st.form("tool_form"):
 
 # пустые необязательные поля не отправляем: серверы валидируют '' как ошибку
 args = {k: v for k, v in args.items() if v not in ("", None)}
+
+# параметры-массивы: серверы ждут JSON-list, а текстовое поле даёт строку
+# (например, pubmed_fetch.pmids — список PMID, разделитель: запятая/пробел)
+for pname, prop in schema_props.items():
+    if pname not in args or not isinstance(args[pname], str):
+        continue
+    variants = prop.get("anyOf") if isinstance(prop.get("anyOf"), list) else []
+    is_array = prop.get("type") == "array" or any(
+        isinstance(o, dict) and o.get("type") == "array" for o in variants)
+    if is_array:
+        args[pname] = [s for s in re.split(r"[,\s]+", args[pname].strip()) if s]
 
 # ------------------------------------------------------------------
 # Вызов + карточка результата + инспектор JSON-RPC
