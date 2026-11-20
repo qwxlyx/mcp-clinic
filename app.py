@@ -241,6 +241,28 @@ def _render_pubmed_search(data: dict):
         st.json(data)
 
 
+def _render_pubmed_fetch(data: dict):
+    """Человекочитаемая карточка результата pubmed_fetch (список статей)."""
+    articles = data.get("articles", [])
+    st.success(f"✅ Получено статей: {data.get('count', len(articles))}")
+    for i, art in enumerate(articles, 1):
+        authors = ", ".join(a.get("full", "") for a in art.get("authors", []))
+        journal = art.get("journal_iso") or art.get("journal", "")
+        year = art.get("pub_year", "")
+        doi = art.get("doi", "")
+        st.markdown(f"**{i}. {art.get('title', '—')}**")
+        st.caption(f"{authors} · {journal}, {year} · DOI: {doi} · "
+                   f"PMID: {art.get('pmid', '')}")
+        abstract = art.get("abstract", "")
+        if abstract:
+            with st.expander("Аннотация", expanded=False):
+                st.write(abstract)
+        if i < len(articles):
+            st.divider()
+    with st.expander("Сырой ответ сервера (JSON)", expanded=False):
+        st.json(data)
+
+
 def render_result(data: dict):
     """Карточка результата: главное значение крупно + цвет + разбор + источник."""
     if not isinstance(data, dict):
@@ -254,6 +276,9 @@ def render_result(data: dict):
         # PubMed) — рисуем специализированную карточку или полезную нагрузку
         if isinstance(data.get("pmids"), list):
             _render_pubmed_search(data)
+            return
+        if isinstance(data.get("articles"), list):
+            _render_pubmed_fetch(data)
             return
         st.json(data)
         return
